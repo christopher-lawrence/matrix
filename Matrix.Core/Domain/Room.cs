@@ -7,10 +7,10 @@ public sealed class Room
     public required RoomId Id { get; init; }
     public required string Name { get; set; }
     public string Description { get; set; }
-    public IReadOnlyDictionary<Direction, RoomId> Exits { get; set; }
+    public IReadOnlyDictionary<Direction, RoomId> Exits { get; init; }
 
     // relationships
-    public required WorldId WorldId { get; set; }
+    public required WorldId WorldId { get; init; }
 
     public Room()
     {
