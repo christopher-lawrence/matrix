@@ -7,5 +7,5 @@ public sealed class UserSession
     public required UserSessionId Id { get; init; }
 
     // relationships
-    public required PlayerId PlayerId { get; set; }
+    public required PlayerId PlayerId { get; init; }
 }
