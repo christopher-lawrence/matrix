@@ -1,7 +1,12 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
+using Matrix.Server.Services;
 
-app.MapGet("/", () => "Hello World!");
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+builder.Services.AddSingleton<WebSocketConnectionService>();
+
+var app = builder.Build();
+app.UseWebSockets();
+app.MapControllers();
 
 app.Run();
 
