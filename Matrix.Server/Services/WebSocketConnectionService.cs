@@ -6,10 +6,12 @@ namespace Matrix.Server.Services;
 public sealed class WebSocketConnectionService
 {
     private readonly ConcurrentDictionary<Guid, WebSocket> _connections;
+    private readonly ISessionManager _sessionManager;
     private readonly ILogger<WebSocketConnectionService> _logger;
 
-    public WebSocketConnectionService(ILogger<WebSocketConnectionService> logger)
+    public WebSocketConnectionService(ISessionManager sessionManager, ILogger<WebSocketConnectionService> logger)
     {
+        _sessionManager = sessionManager;
         _connections = new ConcurrentDictionary<Guid, WebSocket>();
         _logger = logger;
     }
@@ -18,11 +20,11 @@ public sealed class WebSocketConnectionService
     {
         if (!_connections.TryAdd(id, webSocket))
         {
-            _logger.LogError($"Unable to add {id}");
+            _logger.LogError("Unable to add {ConnectionId}", id);
             return;
         }
 
-        _logger.LogInformation($"Added {id}. {GetActiveCount()} current connections");
+        _logger.LogInformation("Added {ConnectionId}. {ActiveCount} current connections", id, GetActiveCount());
 
         await HandleConnectionAsync(id, webSocket, CancellationToken.None);
     }
@@ -37,11 +39,11 @@ public sealed class WebSocketConnectionService
             }
 
             ws.Dispose();
-            _logger.LogInformation($"Removed {id}. {GetActiveCount()} current connections");
+            _logger.LogInformation("Removed {ConnectionId}. {ActiveCount} current connections", id, GetActiveCount());
         }
         else
         {
-            _logger.LogWarning($"Unable to remove {id}");
+            _logger.LogWarning("Unable to remove {ConnectionId}", id);
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class WebSocketConnectionService
 
                 if (receiveResult.MessageType == WebSocketMessageType.Close)
                 {
-                    _logger.LogInformation($"Received Close message from {id}");
+                    _logger.LogInformation("Received Close message from {ConnectionId}", id);
                     break;
                 }
             }
@@ -71,6 +73,7 @@ public sealed class WebSocketConnectionService
         finally
         {
             await RemoveConnection(id);
+            _sessionManager.RemoveByConnectionId(id, out var _);
         }
     }
 }
