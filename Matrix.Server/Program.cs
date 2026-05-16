@@ -6,6 +6,7 @@ builder.Services.AddControllers();
 builder.Services.AddSingleton<WebSocketConnectionService>();
 builder.Services.AddSingleton<ISessionManager, SessionManager>();
 builder.Services.AddSingleton<WorldMap>();
+builder.Services.AddSingleton<IOnboardingService, OnboardingService>();
 
 var app = builder.Build();
 app.UseWebSockets();

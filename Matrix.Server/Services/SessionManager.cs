@@ -12,6 +12,7 @@ public interface ISessionManager
     bool RemoveBySessionId(UserSessionId sessionId, out SessionState? removed);
     IReadOnlyList<SessionState> GetByRoom(RoomId roomId);
     int Count { get; }
+    bool TryUpdateUsername(Guid connectionId, string username);
 }
 
 public sealed class SessionManager : ISessionManager
@@ -114,5 +115,19 @@ public sealed class SessionManager : ISessionManager
         }
 
         return TryGetByConnectionId(connectionId, out session);
+    }
+
+    public bool TryUpdateUsername(Guid connectionId, string username)
+    {
+        if (!TryGetByConnectionId(connectionId, out SessionState? session) || session is null)
+        {
+            return false;
+        }
+
+        var updatedSession = session.Value with { Username = username };
+
+        _byConnectionId[connectionId] = updatedSession;
+
+        return true;
     }
 }
