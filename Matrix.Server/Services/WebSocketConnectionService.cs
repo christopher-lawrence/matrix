@@ -10,16 +10,19 @@ public sealed class WebSocketConnectionService
     private readonly ISessionManager _sessionManager;
     private readonly IOnboardingService _onboardingService;
     private readonly ILogger<WebSocketConnectionService> _logger;
+    private readonly ICommandHandler _commandHandler;
 
     public WebSocketConnectionService(
         ISessionManager sessionManager,
         IOnboardingService onboardingService,
-        ILogger<WebSocketConnectionService> logger)
+        ILogger<WebSocketConnectionService> logger,
+        ICommandHandler commandHandler)
     {
         _sessionManager = sessionManager;
         _connections = new ConcurrentDictionary<Guid, WebSocket>();
-        _onboardingService = onboardingService;
-        _logger = logger;
+        _onboardingService = onboardingService ?? throw new ArgumentNullException(nameof(onboardingService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
     }
 
     public async Task AddConnectionAsync(Guid id, WebSocket webSocket)
@@ -140,15 +143,15 @@ public sealed class WebSocketConnectionService
         {
             while (!socket.CloseStatus.HasValue)
             {
-                var buffer = new byte[1024 * 4];
-                var receiveResult = await socket.ReceiveAsync(
-                    new ArraySegment<byte>(buffer), ct);
+                var message = await socket.ReceiveMessageAsync(_logger, ct);
 
-                if (receiveResult.MessageType == WebSocketMessageType.Close)
+                if (message is null)
                 {
-                    _logger.LogInformation("Received Close message from {ConnectionId}", id);
+                    _logger.LogInformation("Closing socket room {ConnectionId}", id);
                     break;
                 }
+
+                await _commandHandler.HandleMessage(message, id, socket, ct);
             }
         }
         catch (Exception ex)

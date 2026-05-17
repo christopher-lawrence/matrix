@@ -29,24 +29,14 @@ public sealed class OnboardingService : IOnboardingService
         {
             await socket.SendTextAsync("Enter username: ", _logger, ct);
 
-            var buffer = new byte[1024 * 4];
-            var results = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+            var message = await socket.ReceiveMessageAsync(_logger, ct);
 
-            // FOLLOWUP: we should probably handle this better
-            // -- this will atleast fail the onboarding and close the connection
-            if (results.MessageType == WebSocketMessageType.Close)
+            if (message is null)
             {
-                _logger.LogInformation("Received Close message while getting username");
                 return null;
             }
 
-            if (results.MessageType == WebSocketMessageType.Binary)
-            {
-                _logger.LogInformation("Received Binary message while getting username");
-                return null;
-            }
-
-            if (!TryValidateMessage(buffer[0..results.Count], out var username, 24))
+            if (!TryValidateMessage(message, out var username, 24))
             {
                 return null;
             }
@@ -61,26 +51,26 @@ public sealed class OnboardingService : IOnboardingService
         return null;
     }
 
-    private bool TryValidateMessage(ArraySegment<byte> buffer, out string? cleanBuffer, int? maxLength = null)
+    private bool TryValidateMessage(string message, out string? cleanMessage, int? maxLength = null)
     {
-        cleanBuffer = null;
+        cleanMessage = null;
 
-        if (buffer.Array == null || buffer.Count == 0)
+        if (message is null || message.Length == 0)
         {
             return false;
         }
 
-        cleanBuffer = Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count).Trim();
+        cleanMessage = message.Trim();
 
-        if (cleanBuffer.Length == 0)
+        if (cleanMessage.Length == 0)
         {
-            cleanBuffer = null;
+            cleanMessage = null;
             return false;
         }
 
-        if (maxLength is not null && cleanBuffer.Length > maxLength)
+        if (maxLength is not null && cleanMessage.Length > maxLength)
         {
-            cleanBuffer = null;
+            cleanMessage = null;
             return false;
         }
 
