@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using Matrix.Server.Extensions;
 
@@ -6,7 +5,7 @@ namespace Matrix.Server.Services;
 
 public sealed class WebSocketConnectionService
 {
-    private readonly ConcurrentDictionary<Guid, WebSocket> _connections;
+    private readonly IConnectionManager _connectionManager;
     private readonly ISessionManager _sessionManager;
     private readonly IOnboardingService _onboardingService;
     private readonly ILogger<WebSocketConnectionService> _logger;
@@ -14,12 +13,13 @@ public sealed class WebSocketConnectionService
 
     public WebSocketConnectionService(
         ISessionManager sessionManager,
+        IConnectionManager connectionManager,
         IOnboardingService onboardingService,
         ILogger<WebSocketConnectionService> logger,
         ICommandHandler commandHandler)
     {
         _sessionManager = sessionManager;
-        _connections = new ConcurrentDictionary<Guid, WebSocket>();
+        _connectionManager = connectionManager;
         _onboardingService = onboardingService ?? throw new ArgumentNullException(nameof(onboardingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
@@ -27,13 +27,10 @@ public sealed class WebSocketConnectionService
 
     public async Task AddConnectionAsync(Guid id, WebSocket webSocket)
     {
-        if (!_connections.TryAdd(id, webSocket))
+        if (!_connectionManager.TryAdd(id, webSocket))
         {
-            _logger.LogError("Unable to add {ConnectionId}", id);
             return;
         }
-
-        _logger.LogInformation("Added {ConnectionId}. {ActiveCount} current connections", id, GetActiveCount());
 
         if (!await RunUsernameOnboardingAsync(id, CancellationToken.None))
         {
@@ -48,56 +45,24 @@ public sealed class WebSocketConnectionService
 
     public async Task RemoveConnectionAsync(Guid id)
     {
-        if (_connections.TryRemove(id, out WebSocket? ws))
-        {
-            if (!ws.CloseStatus.HasValue)
-            {
-                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing time", CancellationToken.None);
-            }
-
-            ws.Dispose();
-            _logger.LogInformation("Removed {ConnectionId}. {ActiveCount} current connections", id, GetActiveCount());
-        }
-        else
-        {
-            _logger.LogWarning("Unable to remove {ConnectionId}", id);
-        }
+        await _connectionManager.RemoveAsync(id);
     }
 
-    public int GetActiveCount() => _connections.Count();
+    public int GetActiveCount() => _connectionManager.Count;
 
     public async Task<bool> SendTextAsync(Guid connectionId, string message, CancellationToken ct = default)
     {
-        if (!_connections.TryGetValue(connectionId, out var socket))
-        {
-            _logger.LogWarning("Unable to find connection {ConnectionId} to send message", connectionId);
-            return false;
-        }
-
-        if (socket.CloseStatus.HasValue)
-        {
-            _logger.LogWarning("Can not send message to closed socket {ConnectionId}", connectionId);
-            return false;
-        }
-
-        await socket.SendTextAsync<WebSocketConnectionService>(message, _logger, ct);
-
-        return true;
+        return await _connectionManager.SendTextAsync(connectionId, message, ct);
     }
 
     public async Task BroadcastTextAsync(IEnumerable<Guid> connectionIds, string message, CancellationToken ct = default)
     {
-        var connections = new HashSet<Guid>(connectionIds);
-
-        foreach (var connection in connections)
-        {
-            await SendTextAsync(connection, message, ct);
-        }
+        await _connectionManager.BroadcastTextAsync(connectionIds, message, ct);
     }
 
     public async Task<bool> RunUsernameOnboardingAsync(Guid connectionId, CancellationToken ct = default)
     {
-        if (!_connections.TryGetValue(connectionId, out var socket))
+        if (!_connectionManager.TryGetSocket(connectionId, out var socket) || socket is null)
         {
             _logger.LogError("Unable to find socket {ConnectionId}", connectionId);
             return false;
@@ -151,7 +116,7 @@ public sealed class WebSocketConnectionService
                     break;
                 }
 
-                await _commandHandler.HandleMessage(message, id, socket, ct);
+                await _commandHandler.HandleMessage(message, id, ct);
             }
         }
         catch (Exception ex)
