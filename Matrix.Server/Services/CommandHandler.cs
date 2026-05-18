@@ -55,8 +55,55 @@ public sealed class CommandHandler : ICommandHandler
         return command switch
         {
             "/look" => HandleLookCommandAsync(session.Value, socket, ct),
+            "/who" => HandleWhoCommandAsync(session.Value, socket, ct),
             _ => HandleUnknownCommand(command, socket, ct)
         };
+    }
+
+    private async Task HandleWhoCommandAsync(SessionState session, WebSocket socket, CancellationToken ct)
+    {
+        if (!_worldMap.TryGetRoom(session.CurrentRoomId, out var room) || room is null)
+        {
+            _logger.LogError("Unable to get room for id {CurrentRoomId}", session.CurrentRoomId);
+            return;
+        }
+        var sessions = _sessionManager.GetByRoom(room.Id);
+        var users = sessions
+            .Where(x => !string.IsNullOrEmpty(x.Username))
+            .Select(x => x.Username)
+            .OrderBy(x => x);
+        var usersMessage = users.Count() > 1
+            ? $"Users here: {string.Join(", ", users)}"
+            : "You are alone in this room.";
+
+        var sb = new StringBuilder();
+        sb.AppendLine(usersMessage);
+
+        await socket.SendTextAsync(sb.ToString(), _logger, ct);
+    }
+
+    private async Task HandleLookCommandAsync(SessionState session, WebSocket socket, CancellationToken ct)
+    {
+        if (!_worldMap.TryGetRoom(session.CurrentRoomId, out var room) || room is null)
+        {
+            _logger.LogError("Unable to get room for id {CurrentRoomId}", session.CurrentRoomId);
+            return;
+        }
+
+        var sessions = _sessionManager.GetByRoom(room.Id);
+        var users = sessions.Select(x => x.Username);
+        var usersMessage = users.Any() ? string.Join(", ", users) : "none";
+        var exits = room.Exits.Any()
+            ? string.Join(", ", room.Exits.Select(x => x.Key.ToString()).OrderBy(x => x))
+            : "none";
+
+        var sb = new StringBuilder();
+        sb.AppendLine(room.Name);
+        sb.AppendLine(room.Description ?? $"Welcome to {room.Name}");
+        sb.AppendLine($"Exits: {exits}");
+        sb.AppendLine($"Users: {usersMessage}");
+
+        await socket.SendTextAsync(sb.ToString(), _logger, ct);
     }
 
     private bool IsValidCommand(string message) => message.TrimStart().StartsWith('/');
@@ -74,28 +121,6 @@ public sealed class CommandHandler : ICommandHandler
         var parameters = message.AsSpan(command.Length).TrimStart();
 
         return (command, parameters.ToString());
-    }
-
-    private async Task HandleLookCommandAsync(SessionState session, WebSocket socket, CancellationToken ct)
-    {
-        if (!_worldMap.TryGetRoom(session.CurrentRoomId, out var room) || room is null)
-        {
-            _logger.LogError("Unable to get room for id {CurrentRoomId}", session.CurrentRoomId);
-            return;
-        }
-
-        var sessions = _sessionManager.GetByRoom(room.Id);
-        var users = sessions.Select(x => x.Username);
-        var usersMessage = users.Any() ? string.Join(", ", users) : "none";
-        var exits = room.Exits.Any() ? string.Join(", ", room.Exits.Select(x => x.Key.ToString())) : "none";
-
-        var sb = new StringBuilder();
-        sb.AppendLine(room.Name);
-        sb.AppendLine(room.Description ?? $"Welcome to {room.Name}");
-        sb.AppendLine($"Exits: {exits}");
-        sb.AppendLine($"Users: {usersMessage}");
-
-        await socket.SendTextAsync(sb.ToString(), _logger, ct);
     }
 
     private Task HandleUnknownCommand(string command, WebSocket socket, CancellationToken ct)
