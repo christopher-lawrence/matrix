@@ -79,7 +79,7 @@ public sealed class GoCommand : ICommand
 
         if (!_worldMap.TryMove(session.CurrentRoomId, direction, out RoomId roomId) || roomId == default)
         {
-            _logger.LogInformation("Can not move {Direcion} in {RoomId}", direction, session.CurrentRoomId);
+            _logger.LogInformation("Can not move {Direcion} in {RoomId}", direction, session.CurrentRoomId.Value);
             await _connectionManager.SendTextAsync(context.ConnectionId, $"You can not go {direction} from here.", ct);
             return;
         }
@@ -125,7 +125,7 @@ public sealed class GoCommand : ICommand
         {
             string n when Regex.IsMatch(n, @"^[nN](orth)?$") => Direction.North,
             string s when Regex.IsMatch(s, @"^[sS](outh)?$") => Direction.South,
-            string e when Regex.IsMatch(e, @"^[eE](east)?$") => Direction.East,
+            string e when Regex.IsMatch(e, @"^[eE](ast)?$") => Direction.East,
             string w when Regex.IsMatch(w, @"^[wW](est)?$") => Direction.West,
             _ => null
         };
