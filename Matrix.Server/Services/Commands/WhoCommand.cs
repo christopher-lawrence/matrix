@@ -1,6 +1,6 @@
 using Matrix.Core.Services;
 
-namespace Matrix.Server.Services;
+namespace Matrix.Server.Services.Commands;
 
 public sealed class WhoCommand : ICommand
 {
