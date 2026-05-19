@@ -13,6 +13,7 @@ public interface ISessionManager
     IReadOnlyList<SessionState> GetByRoom(RoomId roomId);
     int Count { get; }
     bool TryUpdateUsername(Guid connectionId, string username);
+    bool TryUpdateRoom(Guid connectionId, RoomId roomId);
 }
 
 public sealed class SessionManager : ISessionManager
@@ -115,6 +116,20 @@ public sealed class SessionManager : ISessionManager
         }
 
         return TryGetByConnectionId(connectionId, out session);
+    }
+
+    public bool TryUpdateRoom(Guid connectionId, RoomId roomId)
+    {
+        if (!TryGetByConnectionId(connectionId, out SessionState? session) || session is null)
+        {
+            return false;
+        }
+
+        var updatedSession = session.Value with { CurrentRoomId = roomId };
+
+        _byConnectionId[connectionId] = updatedSession;
+
+        return true;
     }
 
     public bool TryUpdateUsername(Guid connectionId, string username)
