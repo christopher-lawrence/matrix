@@ -36,7 +36,10 @@ public sealed class ConnectionManager : IConnectionManager
             return false;
         }
 
-        _logger.LogInformation("Added {ConnectionId}. {ActiveCount} current connections", connectionId, Count);
+        _logger.LogInformation(
+            "Connection {ConnectionId} added. Active connections: {ActiveCount}",
+            connectionId,
+            Count);
         return true;
     }
 
@@ -74,7 +77,10 @@ public sealed class ConnectionManager : IConnectionManager
             socket.Dispose();
         }
 
-        _logger.LogInformation("Removed {ConnectionId}. {ActiveCount} current connections", connectionId, Count);
+        _logger.LogInformation(
+            "Connection {ConnectionId} removed. Active connections: {ActiveCount}",
+            connectionId,
+            Count);
     }
 
     public async Task<bool> SendTextAsync(Guid connectionId, string message, CancellationToken ct = default)

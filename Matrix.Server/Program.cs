@@ -17,7 +17,13 @@ builder.Services.AddSingleton<ICommand, HelpCommand>();
 builder.Services.AddSingleton<ICommand, SayCommand>();
 
 var app = builder.Build();
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Matrix.Server.Startup");
 app.UseWebSockets();
 app.MapControllers();
+
+startupLogger.LogInformation(
+    "Matrix server starting in {EnvironmentName}. WebSocket endpoint: {WebSocketEndpoint}",
+    app.Environment.EnvironmentName,
+    "/ws");
 
 app.Run();

@@ -27,6 +27,7 @@ public sealed class CommandHandler : ICommandHandler
     {
         if (!IsValidCommand(message))
         {
+            _logger.LogWarning("Invalid command input from {ConnectionId}", connectionId);
             await _connectionManager.SendTextAsync(connectionId, "Invalid command", ct);
             return;
         }
@@ -34,17 +35,44 @@ public sealed class CommandHandler : ICommandHandler
         var (command, parameters) = ParseMessage(message);
         if (command is null)
         {
-            _logger.LogInformation("Command is null");
+            _logger.LogWarning("Unable to parse command from {ConnectionId}", connectionId);
             return;
         }
 
         if (!_commands.TryGetValue(command, out var handler))
         {
+            _logger.LogWarning(
+                "Unknown command with length {CommandLength} from {ConnectionId}",
+                command.Length,
+                connectionId);
             await _connectionManager.SendTextAsync(connectionId, $"Unknown command: {command}. Use /help to see available commands.", ct);
             return;
         }
 
-        await handler.ExecuteAsync(new CommandContext(connectionId), parameters, ct);
+        try
+        {
+            await handler.ExecuteAsync(new CommandContext(connectionId), parameters, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogInformation(
+                "Command {Command} canceled for {ConnectionId}",
+                command,
+                connectionId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Command {Command} failed for {ConnectionId}",
+                command,
+                connectionId);
+            await _connectionManager.SendTextAsync(
+                connectionId,
+                "Command failed. Please try again.",
+                ct);
+        }
     }
 
     private static bool IsValidCommand(string message) => message.TrimStart().StartsWith('/');

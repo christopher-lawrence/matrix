@@ -67,7 +67,7 @@ public sealed class GoCommand : ICommand
 
         if (!TryParseDirection(allParameters[0], out Direction? direction) || direction is null)
         {
-            _logger.LogWarning("Unable to parse {Direction}", allParameters[0]);
+            _logger.LogWarning("Unable to parse direction for {Command} from {ConnectionId}", Name, context.ConnectionId);
             // FOLLOWUP: make ICommand have a GetHelp method
             await _connectionManager.SendTextAsync(
                 context.ConnectionId, $"Invalid direction: north, south, east, west", ct);
