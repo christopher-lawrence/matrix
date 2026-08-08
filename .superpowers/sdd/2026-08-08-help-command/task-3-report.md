@@ -23,7 +23,7 @@ Additional self-review:
 
 ## Commit
 
-`376f721 feat: suggest help for unknown commands`
+`4376f08 feat: suggest help for unknown commands`
 
 ## Concerns
 
