@@ -24,6 +24,8 @@ try
     var sendTask = SendConsoleInputAsync(socket, shutdown);
 
     await Task.WhenAny(receiveTask, sendTask, shutdownRequested.Task);
+    shutdown.Cancel();
+    await Task.WhenAll(receiveTask, sendTask);
 }
 catch (OperationCanceledException)
 {
