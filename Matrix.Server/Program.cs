@@ -14,6 +14,7 @@ builder.Services.AddSingleton<ICommand, LookCommand>();
 builder.Services.AddSingleton<ICommand, WhoCommand>();
 builder.Services.AddSingleton<ICommand, GoCommand>();
 builder.Services.AddSingleton<ICommand, HelpCommand>();
+builder.Services.AddSingleton<ICommand, SayCommand>();
 
 var app = builder.Build();
 app.UseWebSockets();

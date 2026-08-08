@@ -97,6 +97,7 @@ Commands must start with `/`. Non-command messages receive `Invalid command`.
 | `/look` | Shows the current room name, description, exits, and users in the room. |
 | `/who` | Lists users in the current room, or says you are alone. |
 | `/go <direction>` | Moves to an adjacent room when an exit exists. |
+| `/say <message>` | Broadcasts a message to users in the current room. |
 
 `/go` accepts full directions and one-letter abbreviations:
 
@@ -106,6 +107,14 @@ Commands must start with `/`. Non-command messages receive `Invalid command`.
 - `west` or `w`
 
 If the direction is missing, invalid, or unavailable from the current room, the server sends a user-facing error.
+
+`/say` trims the message before sending it. Empty or whitespace-only messages are rejected:
+
+```text
+You must provide a message to say.
+```
+
+Messages are broadcast only to users in the sender's current room. The sender also receives the broadcast.
 
 Unknown slash commands receive:
 
@@ -162,6 +171,8 @@ Users: Ada
 
 > /who
 You are alone in this room.
+> /say hello
+Ada says: hello
 > /go north
 You moved North to Arcade
 Use /look to inspect room.
