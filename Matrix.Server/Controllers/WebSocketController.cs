@@ -30,8 +30,8 @@ public class WebSocketController : ControllerBase
     public async Task Get()
     {
         _logger.LogDebug(
-            "Received request for WebSocket endpoint from {RemoteIpAddress}",
-            HttpContext.Connection.RemoteIpAddress);
+            "Received request for WebSocket endpoint {Path}",
+            HttpContext.Request.Path);
 
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
@@ -66,9 +66,8 @@ public class WebSocketController : ControllerBase
         else
         {
             _logger.LogWarning(
-                "Rejected non-WebSocket request to {Path} from {RemoteIpAddress}",
-                HttpContext.Request.Path,
-                HttpContext.Connection.RemoteIpAddress);
+                "Rejected non-WebSocket request to {Path}",
+                HttpContext.Request.Path);
             HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             HttpContext.Response.ContentType = "text/plain; charset=utf-8";
             await HttpContext.Response.WriteAsync("Use a WebSocket client to connect to /ws");

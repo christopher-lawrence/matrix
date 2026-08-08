@@ -42,8 +42,8 @@ public sealed class CommandHandler : ICommandHandler
         if (!_commands.TryGetValue(command, out var handler))
         {
             _logger.LogWarning(
-                "Unknown command {Command} from {ConnectionId}",
-                command,
+                "Unknown command with length {CommandLength} from {ConnectionId}",
+                command.Length,
                 connectionId);
             await _connectionManager.SendTextAsync(connectionId, $"Unknown command: {command}. Use /help to see available commands.", ct);
             return;
