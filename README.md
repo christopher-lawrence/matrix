@@ -93,6 +93,7 @@ Commands must start with `/`. Non-command messages receive `Invalid command`.
 
 | Command | Description |
 | --- | --- |
+| `/help` | Lists available commands with short examples. |
 | `/look` | Shows the current room name, description, exits, and users in the room. |
 | `/who` | Lists users in the current room, or says you are alone. |
 | `/go <direction>` | Moves to an adjacent room when an exit exists. |
@@ -109,7 +110,7 @@ If the direction is missing, invalid, or unavailable from the current room, the 
 Unknown slash commands receive:
 
 ```text
-Unknown command: /command
+Unknown command: /command. Use /help to see available commands.
 ```
 
 ## World
@@ -143,6 +144,16 @@ Connected. Type /quit to exit.
 Enter username:
 > Ada
 Welcome, Ada!
+> /help
+Available commands:
+/go - Moves to an adjacent room by direction.
+  Example: /go north
+/help - Lists available commands and examples.
+  Example: /help
+/look - Shows the current room, exits, and users nearby.
+  Example: /look
+/who - Lists users in your current room.
+  Example: /who
 > /look
 Lobby
 Welcome to the Lobby
