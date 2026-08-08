@@ -23,6 +23,10 @@ public sealed class WhoCommand : ICommand
 
     public string Name => "/who";
 
+    public string Description => "Lists users in your current room.";
+
+    public string Example => "/who";
+
     public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
     {
         if (!_sessionManager.TryGetByConnectionId(context.ConnectionId, out SessionState? session) || session is null)

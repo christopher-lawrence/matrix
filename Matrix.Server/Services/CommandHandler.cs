@@ -40,7 +40,7 @@ public sealed class CommandHandler : ICommandHandler
 
         if (!_commands.TryGetValue(command, out var handler))
         {
-            await _connectionManager.SendTextAsync(connectionId, $"Unknown command: {command}", ct);
+            await _connectionManager.SendTextAsync(connectionId, $"Unknown command: {command}. Use /help to see available commands.", ct);
             return;
         }
 

@@ -24,6 +24,10 @@ public sealed class LookCommand : ICommand
 
     public string Name => "/look";
 
+    public string Description => "Shows the current room, exits, and users nearby.";
+
+    public string Example => "/look";
+
     public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
     {
         if (!_sessionManager.TryGetByConnectionId(context.ConnectionId, out SessionState? session) || session is null)

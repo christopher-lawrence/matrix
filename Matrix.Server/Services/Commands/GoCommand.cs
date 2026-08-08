@@ -26,7 +26,11 @@ public sealed class GoCommand : ICommand
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string Name => @"/go";
+    public string Name => "/go";
+
+    public string Description => "Moves to an adjacent room by direction.";
+
+    public string Example => "/go north";
 
     public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
     {
