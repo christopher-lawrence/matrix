@@ -34,7 +34,7 @@ public sealed class WebSocketConnectionService
 
         if (!await RunUsernameOnboardingAsync(id, CancellationToken.None))
         {
-            _logger.LogError("Unable to update username for {ConnectionId}", id);
+            _logger.LogWarning("Connection onboarding not completed for {ConnectionId}", id);
             await RemoveConnectionAsync(id);
             _sessionManager.RemoveByConnectionId(id, out _);
             return;
@@ -72,7 +72,7 @@ public sealed class WebSocketConnectionService
 
         if (username is null)
         {
-            _logger.LogError("Invalid username entered {Username}", username);
+            _logger.LogWarning("Username onboarding did not produce a value for {ConnectionId}", connectionId);
             await socket.SendTextAsync("Invalid username. Must not be empty and less than 24 characters", _logger, ct);
             return false;
         }
@@ -80,7 +80,7 @@ public sealed class WebSocketConnectionService
         if (!_sessionManager.TryUpdateUsername(connectionId, username))
         {
             await socket.SendTextAsync("Unable to store username", _logger, ct);
-            _logger.LogError("Unable to store {Username} for {ConnectionId}", username, connectionId);
+            _logger.LogError("Unable to store username for {ConnectionId}", connectionId);
             return false;
         }
 
@@ -92,6 +92,12 @@ public sealed class WebSocketConnectionService
             _logger.LogError("Unable to get session state for {ConnectionId}", connectionId);
             return false;
         }
+
+        _logger.LogInformation(
+            "Connection {ConnectionId} completed onboarding for session {SessionId} in room {RoomId}",
+            connectionId,
+            session.Value.SessionId,
+            session.Value.CurrentRoomId);
 
         var sessions = _sessionManager.GetByRoom(session.Value.CurrentRoomId);
 
@@ -112,7 +118,11 @@ public sealed class WebSocketConnectionService
 
                 if (message is null)
                 {
-                    _logger.LogInformation("Closing socket room {ConnectionId}", id);
+                    _logger.LogInformation(
+                        "WebSocket receive completed without a message for {ConnectionId}. State: {WebSocketState}. Close status: {CloseStatus}",
+                        id,
+                        socket.State,
+                        socket.CloseStatus);
                     break;
                 }
 
@@ -121,12 +131,23 @@ public sealed class WebSocketConnectionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception while handling connection");
+            _logger.LogError(ex, "Exception while handling connection {ConnectionId}", id);
         }
         finally
         {
             await RemoveConnectionAsync(id);
-            _sessionManager.RemoveByConnectionId(id, out var _);
+
+            if (_sessionManager.RemoveByConnectionId(id, out var removedSession) && removedSession is not null)
+            {
+                _logger.LogInformation(
+                    "Removed session {SessionId} for disconnected connection {ConnectionId}",
+                    removedSession.Value.SessionId,
+                    id);
+            }
+            else
+            {
+                _logger.LogWarning("No session found while disconnecting connection {ConnectionId}", id);
+            }
         }
     }
 }

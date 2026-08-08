@@ -29,7 +29,9 @@ public class WebSocketController : ControllerBase
     [HttpGet]
     public async Task Get()
     {
-        _logger.LogDebug("Received connection...");
+        _logger.LogDebug(
+            "Received request for WebSocket endpoint from {RemoteIpAddress}",
+            HttpContext.Connection.RemoteIpAddress);
 
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
@@ -45,6 +47,11 @@ public class WebSocketController : ControllerBase
                 CurrentRoomId = _worldMap.DefaultRoomId,
             };
 
+            _logger.LogInformation(
+                "Accepted WebSocket request {ConnectionId} with session {SessionId}",
+                connectionId,
+                sessionState.SessionId);
+
             if (!_sessionManager.TryAdd(sessionState))
             {
                 _logger.LogWarning("Failed to add session {SessionId}", sessionState.SessionId);
@@ -58,6 +65,10 @@ public class WebSocketController : ControllerBase
         }
         else
         {
+            _logger.LogWarning(
+                "Rejected non-WebSocket request to {Path} from {RemoteIpAddress}",
+                HttpContext.Request.Path,
+                HttpContext.Connection.RemoteIpAddress);
             HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             HttpContext.Response.ContentType = "text/plain; charset=utf-8";
             await HttpContext.Response.WriteAsync("Use a WebSocket client to connect to /ws");
