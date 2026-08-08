@@ -51,9 +51,16 @@ public sealed class ConnectionManager : IConnectionManager
             return;
         }
 
-        if (!socket.CloseStatus.HasValue)
+        if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
         {
-            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing time", ct);
+            try
+            {
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing time", ct);
+            }
+            catch (WebSocketException ex)
+            {
+                _logger.LogInformation(ex, "Socket {ConnectionId} disconnected before close completed", connectionId);
+            }
         }
 
         socket.Dispose();

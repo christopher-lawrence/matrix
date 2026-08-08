@@ -21,6 +21,12 @@ public static class WebSocketExtensions
     public static async Task<string?> ReceiveMessageAsync<T>(
         this WebSocket socket, ILogger<T> logger, CancellationToken ct)
     {
+        if (socket.State is not WebSocketState.Open and not WebSocketState.CloseSent)
+        {
+            logger.LogInformation("Socket is no longer open. State: {WebSocketState}", socket.State);
+            return null;
+        }
+
         var sb = new StringBuilder();
         WebSocketReceiveResult results;
 
@@ -31,8 +37,6 @@ public static class WebSocketExtensions
                 var buffer = new ArraySegment<byte>(new byte[1024 * 4]);
                 results = await socket.ReceiveAsync(buffer, ct);
 
-                // FOLLOWUP: we should probably handle this better
-                // -- this will atleast fail the onboarding and close the connection
                 if (results.MessageType == WebSocketMessageType.Close)
                 {
                     logger.LogInformation("Received Close message");
@@ -55,12 +59,28 @@ public static class WebSocketExtensions
                 sb.Append(message);
             } while (!results.EndOfMessage);
         }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (WebSocketException ex) when (IsExpectedDisconnect(socket, ex))
+        {
+            logger.LogInformation("Socket disconnected. State: {WebSocketState}", socket.State);
+            return null;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Exception while receiving message");
+            return null;
         }
 
         return sb.ToString();
     }
 
+    private static bool IsExpectedDisconnect(WebSocket socket, WebSocketException ex)
+        => socket.State is WebSocketState.Aborted
+            or WebSocketState.Closed
+            or WebSocketState.CloseReceived
+            or WebSocketState.CloseSent
+            || ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely;
 }
