@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Matrix.Core.Protocol;
 using Matrix.Core.Services;
 
 namespace Matrix.Server.Services.Commands;
@@ -6,28 +8,28 @@ public sealed class WhoCommand : ICommand
 {
     private readonly ISessionManager _sessionManager;
     private readonly WorldMap _worldMap;
-    private readonly IConnectionManager _connectionManager;
+    private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly ILogger<WhoCommand> _logger;
 
     public WhoCommand(
         ISessionManager sessionManager,
         WorldMap worldMap,
-        IConnectionManager connectionManager,
+        IProtocolMessageSender protocolMessageSender,
         ILogger<WhoCommand> logger)
     {
         _sessionManager = sessionManager;
         _worldMap = worldMap;
-        _connectionManager = connectionManager;
+        _protocolMessageSender = protocolMessageSender;
         _logger = logger;
     }
 
-    public string Name => "/who";
+    public string Type => ProtocolMessageTypes.Who;
 
     public string Description => "Lists users in your current room.";
 
-    public string Example => "/who";
+    public string Example => """{"type":"who"}""";
 
-    public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
+    public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {
         if (!_sessionManager.TryGetByConnectionId(context.ConnectionId, out SessionState? session) || session is null)
         {
@@ -41,17 +43,16 @@ public sealed class WhoCommand : ICommand
             return;
         }
 
-        var sessions = _sessionManager.GetByRoom(room.Id);
-        var users = sessions
-            .Where(x => !string.IsNullOrEmpty(x.Username))
+        var users = _sessionManager.GetByRoom(room.Id)
+            .Where(x => !string.IsNullOrWhiteSpace(x.Username))
             .Select(x => x.Username)
             .OrderBy(x => x)
             .ToList();
 
-        var message = users.Count > 1
-            ? $"Users here: {string.Join(", ", users)}"
-            : "You are alone in this room.";
-
-        await _connectionManager.SendTextAsync(context.ConnectionId, message, ct);
+        await _protocolMessageSender.SendAsync(
+            context.ConnectionId,
+            ProtocolMessageTypes.Who,
+            new WhoData(users),
+            ct);
     }
 }
