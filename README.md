@@ -89,37 +89,42 @@ Usernames are trimmed, must not be empty, and must be 24 characters or fewer.
 
 ## Commands
 
-Commands must start with `/`. Non-command messages receive `Invalid command`.
+WebSocket clients send JSON messages with a `type` and optional `args` object. Responses are JSON envelopes with `type` and `data`.
 
-| Command | Description |
+| Message type | Description |
 | --- | --- |
-| `/help` | Lists available commands with short examples. |
-| `/look` | Shows the current room name, description, exits, and users in the room. |
-| `/who` | Lists users in the current room, or says you are alone. |
-| `/go <direction>` | Moves to an adjacent room when an exit exists. |
-| `/say <message>` | Broadcasts a message to users in the current room. |
+| `help` | Lists available commands with short examples. |
+| `look` | Shows the current room name, description, exits, and users in the room. |
+| `who` | Lists users in the current room. |
+| `move` | Moves to an adjacent room when an exit exists. |
+| `say` | Broadcasts a message to users in the current room. |
 
-`/go` accepts full directions and one-letter abbreviations:
+The WebSocket request examples are:
 
-- `north` or `n`
-- `south` or `s`
-- `east` or `e`
-- `west` or `w`
+```text
+> {"type":"look"}
+> {"type":"move","args":{"direction":"north"}}
+> {"type":"say","args":{"message":"hello"}}
+> {"type":"who"}
+> {"type":"help"}
+```
+
+`move` accepts full directions and one-letter abbreviations such as `north`/`n`, `south`/`s`, `east`/`e`, and `west`/`w`.
 
 If the direction is missing, invalid, or unavailable from the current room, the server sends a user-facing error.
 
-`/say` trims the message before sending it. Empty or whitespace-only messages are rejected:
+`say` trims the message before sending it. Empty or whitespace-only messages are rejected:
 
-```text
-You must provide a message to say.
+```json
+{"type":"error","data":{"message":"You must provide a message to say."}}
 ```
 
 Messages are broadcast only to users in the sender's current room. The sender also receives the broadcast.
 
-Unknown slash commands receive:
+Unknown message types receive:
 
-```text
-Unknown command: /command. Use /help to see available commands.
+```json
+{"type":"error","data":{"message":"Unknown command."}}
 ```
 
 ## World
@@ -153,38 +158,16 @@ Connected. Type /quit to exit.
 Enter username:
 > Ada
 Welcome, Ada!
-> /help
-Available commands:
-/go - Moves to an adjacent room by direction.
-  Example: /go north
-/help - Lists available commands and examples.
-  Example: /help
-/look - Shows the current room, exits, and users nearby.
-  Example: /look
-/who - Lists users in your current room.
-  Example: /who
-> /look
-Lobby
-Welcome to the Lobby
-Exits: North
-Users: Ada
-
-> /who
-You are alone in this room.
-> /say hello
-Ada says: hello
-> /go north
-You moved North to Arcade
-Use /look to inspect room.
-
-> /look
-Arcade
-Enjoy the arcade
-Exits: South
-Users: Ada
-
-> /go west
-You can not go West from here.
+> look
+roomState: Lobby
+> who
+who: Ada
+> say hello
+chatMessage: Ada says: hello
+> move north
+roomState: Arcade
+> help
+help: available commands and examples
 > /quit
 ```
 
