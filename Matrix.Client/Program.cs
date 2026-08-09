@@ -176,6 +176,7 @@ static async Task SendConsoleInputAsync(
 
             if (string.IsNullOrWhiteSpace(line))
             {
+                WritePrompt();
                 continue;
             }
 
@@ -191,6 +192,7 @@ static async Task SendConsoleInputAsync(
             else if (!TryCreateClientMessage(line, out clientMessage) || clientMessage is null)
             {
                 Console.WriteLine("Unknown command. Use look, who, move <direction>, say <message>, help, or quit.");
+                WritePrompt();
                 continue;
             }
 
