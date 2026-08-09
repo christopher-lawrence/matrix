@@ -31,7 +31,14 @@ public static class ProtocolJson
             return default;
         }
 
-        return args.Value.Deserialize<T>(SerializerOptions);
+        try
+        {
+            return args.Value.Deserialize<T>(SerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
     }
 
     public static string Serialize(ServerMessage message)

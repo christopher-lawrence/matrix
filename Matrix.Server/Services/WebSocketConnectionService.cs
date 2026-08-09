@@ -77,7 +77,7 @@ public sealed class WebSocketConnectionService
             await socket.SendTextAsync(
                 ProtocolJson.Serialize(new ServerMessage(
                     ProtocolMessageTypes.Error,
-                    new ErrorData("Invalid username. Must not be empty and less than 24 characters."))),
+                    new ErrorData("Invalid username message. Send setUsername with a non-empty username of 24 characters or fewer."))),
                 _logger,
                 ct);
             return false;
