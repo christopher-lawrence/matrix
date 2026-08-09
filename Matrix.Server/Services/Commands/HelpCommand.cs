@@ -19,7 +19,7 @@ public sealed class HelpCommand : ICommand
 
     public string Description => "Lists available commands and examples.";
 
-    public string Example => """{"type":"help"}""";
+    public string Example => "help";
 
     public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {

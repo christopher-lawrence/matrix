@@ -23,7 +23,7 @@ public sealed class SayCommand : ICommand
 
     public string Description => "Broadcasts a message to users in your current room.";
 
-    public string Example => """{"type":"say","args":{"message":"hello"}}""";
+    public string Example => "say hello";
 
     public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {

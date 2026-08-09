@@ -27,7 +27,7 @@ public sealed class WhoCommand : ICommand
 
     public string Description => "Lists users in your current room.";
 
-    public string Example => """{"type":"who"}""";
+    public string Example => "who";
 
     public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {

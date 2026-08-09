@@ -27,7 +27,7 @@ public sealed class LookCommand : ICommand
 
     public string Description => "Shows the current room, exits, and users nearby.";
 
-    public string Example => """{"type":"look"}""";
+    public string Example => "look";
 
     public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {

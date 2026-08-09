@@ -31,7 +31,7 @@ public sealed class GoCommand : ICommand
 
     public string Description => "Moves to an adjacent room by direction.";
 
-    public string Example => """{"type":"move","args":{"direction":"north"}}""";
+    public string Example => "move north";
 
     public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {

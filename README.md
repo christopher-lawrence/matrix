@@ -181,15 +181,15 @@ Users: Ada
 > help
 Available commands:
 help - Lists available commands and examples.
-  Example: {"type":"help"}
+  Example: help
 look - Shows the current room, exits, and users nearby.
-  Example: {"type":"look"}
+  Example: look
 move - Moves to an adjacent room by direction.
-  Example: {"type":"move","args":{"direction":"north"}}
+  Example: move north
 say - Broadcasts a message to users in your current room.
-  Example: {"type":"say","args":{"message":"hello"}}
+  Example: say hello
 who - Lists users in your current room.
-  Example: {"type":"who"}
+  Example: who
 > /quit
 ```
 
