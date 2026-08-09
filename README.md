@@ -79,10 +79,16 @@ You can also connect with any WebSocket client. For example, with `wscat`:
 wscat -c ws://localhost:5114/ws
 ```
 
-When the server accepts the connection, it prompts for a username:
+When the server accepts the connection, it sends a JSON prompt:
 
-```text
-Enter username:
+```json
+{"type":"prompt","data":{"message":"Enter username:"}}
+```
+
+Reply with a JSON `setUsername` message:
+
+```json
+{"type":"setUsername","args":{"username":"Chris"}}
 ```
 
 Usernames are trimmed, must not be empty, and must be 24 characters or fewer.
