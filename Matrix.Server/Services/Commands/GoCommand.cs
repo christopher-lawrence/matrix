@@ -1,8 +1,9 @@
 
-using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Matrix.Core.Domain;
 using Matrix.Core.Ids;
+using Matrix.Core.Protocol;
 using Matrix.Core.Services;
 
 namespace Matrix.Server.Services.Commands;
@@ -11,28 +12,28 @@ public sealed class GoCommand : ICommand
 {
     private readonly ISessionManager _sessionManager;
     private readonly WorldMap _worldMap;
-    private readonly IConnectionManager _connectionManager;
+    private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly ILogger<GoCommand> _logger;
 
     public GoCommand(
         ISessionManager sessionManager,
         WorldMap worldMap,
-        IConnectionManager connectionManager,
+        IProtocolMessageSender protocolMessageSender,
         ILogger<GoCommand> logger)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         _worldMap = worldMap ?? throw new ArgumentNullException(nameof(worldMap));
-        _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
+        _protocolMessageSender = protocolMessageSender ?? throw new ArgumentNullException(nameof(protocolMessageSender));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string Name => "/go";
+    public string Type => ProtocolMessageTypes.Move;
 
     public string Description => "Moves to an adjacent room by direction.";
 
-    public string Example => "/go north";
+    public string Example => "move north";
 
-    public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
+    public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {
         if (!_sessionManager.TryGetByConnectionId(context.ConnectionId, out SessionState? session) || session is null)
         {
@@ -46,31 +47,26 @@ public sealed class GoCommand : ICommand
             return;
         }
 
-        if (parameters is null)
+        var moveArgs = ProtocolJson.DeserializeArgs<MoveArgs>(args);
+        var directionText = moveArgs?.Direction?.Trim();
+        if (string.IsNullOrEmpty(directionText))
         {
-            _logger.LogError("No direction specified for {Command}", Name);
-            // FOLLOWUP: make ICommand have a GetHelp method
-            await _connectionManager.SendTextAsync(
-                context.ConnectionId, "You must specify a direction: north, south, east, west", ct);
+            await _protocolMessageSender.SendAsync(
+                context.ConnectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("You must specify a direction: north, south, east, west."),
+                ct);
             return;
         }
 
-        var allParameters = parameters.Trim().Split(' ');
-        if (allParameters.Length == 0)
+        if (!TryParseDirection(directionText, out Direction? direction) || direction is null)
         {
-            _logger.LogError("No direction could be parsed for {Command}", Name);
-            // FOLLOWUP: make ICommand have a GetHelp method
-            await _connectionManager.SendTextAsync(
-                context.ConnectionId, "You must specify a direction: north, south, east, west", ct);
-            return;
-        }
-
-        if (!TryParseDirection(allParameters[0], out Direction? direction) || direction is null)
-        {
-            _logger.LogWarning("Unable to parse direction for {Command} from {ConnectionId}", Name, context.ConnectionId);
-            // FOLLOWUP: make ICommand have a GetHelp method
-            await _connectionManager.SendTextAsync(
-                context.ConnectionId, $"Invalid direction: north, south, east, west", ct);
+            _logger.LogWarning("Unable to parse direction for {CommandType} from {ConnectionId}", Type, context.ConnectionId);
+            await _protocolMessageSender.SendAsync(
+                context.ConnectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("Invalid direction: north, south, east, west."),
+                ct);
             return;
         }
 
@@ -84,7 +80,11 @@ public sealed class GoCommand : ICommand
         if (!_worldMap.TryMove(session.CurrentRoomId, direction, out RoomId roomId) || roomId == default)
         {
             _logger.LogInformation("Can not move {Direcion} in {RoomId}", direction, session.CurrentRoomId.Value);
-            await _connectionManager.SendTextAsync(context.ConnectionId, $"You can not go {direction} from here.", ct);
+            await _protocolMessageSender.SendAsync(
+                context.ConnectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData($"You can not go {direction} from here."),
+                ct);
             return;
         }
 
@@ -100,7 +100,11 @@ public sealed class GoCommand : ICommand
             .Where(x => x.ConnectionId != session.ConnectionId)
             .Select(x => x.ConnectionId)
             .ToList();
-        await _connectionManager.BroadcastTextAsync(previousRoomConnectionIds, $"{session.Username} left {direction}.");
+        await _protocolMessageSender.BroadcastAsync(
+            previousRoomConnectionIds,
+            ProtocolMessageTypes.UserLeft,
+            new UserPresenceData(session.Username),
+            ct);
 
         // Broadcast enter
         var currentRoomConnectionIds = _sessionManager
@@ -108,7 +112,11 @@ public sealed class GoCommand : ICommand
             .Where(x => x.ConnectionId != session.ConnectionId)
             .Select(x => x.ConnectionId)
             .ToList();
-        await _connectionManager.BroadcastTextAsync(currentRoomConnectionIds, $"{session.Username} entered the room");
+        await _protocolMessageSender.BroadcastAsync(
+            currentRoomConnectionIds,
+            ProtocolMessageTypes.UserEntered,
+            new UserPresenceData(session.Username),
+            ct);
 
         // Send message to user
         if (!_worldMap.TryGetRoom(roomId, out var room) || room is null)
@@ -117,10 +125,27 @@ public sealed class GoCommand : ICommand
             return;
         }
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"You moved {direction} to {room.Name}");
-        sb.AppendLine("Use /look to inspect room.");
-        await _connectionManager.SendTextAsync(context.ConnectionId, sb.ToString());
+        var sessions = _sessionManager.GetByRoom(room.Id);
+        var users = sessions
+            .Where(x => !string.IsNullOrWhiteSpace(x.Username))
+            .Select(x => x.Username)
+            .OrderBy(x => x)
+            .ToList();
+        var exits = room.Exits.Keys
+            .Select(x => x.ToString().ToLowerInvariant())
+            .OrderBy(x => x)
+            .ToList();
+
+        await _protocolMessageSender.SendAsync(
+            context.ConnectionId,
+            ProtocolMessageTypes.RoomState,
+            new RoomStateData(
+                room.Id.Value.ToString(),
+                room.Name,
+                room.Description ?? $"Welcome to {room.Name}",
+                users,
+                exits),
+            ct);
     }
 
     private static bool TryParseDirection(string input, out Direction? direction)

@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using Matrix.Core.Protocol;
 
 namespace Matrix.Server.Services;
 
@@ -9,55 +9,57 @@ public interface ICommandHandler
 
 public sealed class CommandHandler : ICommandHandler
 {
-    private readonly IConnectionManager _connectionManager;
+    private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly Dictionary<string, ICommand> _commands;
     private readonly ILogger<CommandHandler> _logger;
 
     public CommandHandler(
-        IConnectionManager connectionManager,
+        IProtocolMessageSender protocolMessageSender,
         IEnumerable<ICommand> commands,
         ILogger<CommandHandler> logger)
     {
-        _connectionManager = connectionManager;
-        _logger = logger;
-        _commands = commands.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+        _protocolMessageSender = protocolMessageSender ?? throw new ArgumentNullException(nameof(protocolMessageSender));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _commands = commands.ToDictionary(x => x.Type, StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task HandleMessage(string message, Guid connectionId, CancellationToken ct)
     {
-        if (!IsValidCommand(message))
+        if (!ProtocolJson.TryDeserializeClientMessage(message, out var clientMessage) || clientMessage is null)
         {
-            _logger.LogWarning("Invalid command input from {ConnectionId}", connectionId);
-            await _connectionManager.SendTextAsync(connectionId, "Invalid command", ct);
+            _logger.LogWarning("Invalid protocol JSON from {ConnectionId}", connectionId);
+            await _protocolMessageSender.SendAsync(
+                connectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("Invalid JSON."),
+                ct);
             return;
         }
 
-        var (command, parameters) = ParseMessage(message);
-        if (command is null)
-        {
-            _logger.LogWarning("Unable to parse command from {ConnectionId}", connectionId);
-            return;
-        }
-
-        if (!_commands.TryGetValue(command, out var handler))
+        var commandType = clientMessage.Type.Trim();
+        if (!_commands.TryGetValue(commandType, out var handler))
         {
             _logger.LogWarning(
-                "Unknown command with length {CommandLength} from {ConnectionId}",
-                command.Length,
+                "Unknown protocol message type with length {TypeLength} from {ConnectionId}",
+                commandType.Length,
                 connectionId);
-            await _connectionManager.SendTextAsync(connectionId, $"Unknown command: {command}. Use /help to see available commands.", ct);
+            await _protocolMessageSender.SendAsync(
+                connectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("Unknown command."),
+                ct);
             return;
         }
 
         try
         {
-            await handler.ExecuteAsync(new CommandContext(connectionId), parameters, ct);
+            await handler.ExecuteAsync(new CommandContext(connectionId), clientMessage.Args, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             _logger.LogInformation(
-                "Command {Command} canceled for {ConnectionId}",
-                command,
+                "Command {CommandType} canceled for {ConnectionId}",
+                commandType,
                 connectionId);
             throw;
         }
@@ -65,28 +67,14 @@ public sealed class CommandHandler : ICommandHandler
         {
             _logger.LogError(
                 ex,
-                "Command {Command} failed for {ConnectionId}",
-                command,
+                "Command {CommandType} failed for {ConnectionId}",
+                commandType,
                 connectionId);
-            await _connectionManager.SendTextAsync(
+            await _protocolMessageSender.SendAsync(
                 connectionId,
-                "Command failed. Please try again.",
+                ProtocolMessageTypes.Error,
+                new ErrorData("Command failed. Please try again."),
                 ct);
         }
-    }
-
-    private static bool IsValidCommand(string message) => message.TrimStart().StartsWith('/');
-
-    private static (string? command, string? parameters) ParseMessage(string message)
-    {
-        var matcher = Regex.Match(message, @"^\/\w+");
-        if (!matcher.Success)
-        {
-            return (null, null);
-        }
-
-        var command = matcher.Value;
-        var parameters = message.AsSpan(command.Length).TrimStart();
-        return (command, parameters.ToString());
     }
 }

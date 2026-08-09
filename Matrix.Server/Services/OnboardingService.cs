@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using Matrix.Core.Protocol;
 using Matrix.Server.Extensions;
 
 namespace Matrix.Server.Services;
@@ -27,7 +28,9 @@ public sealed class OnboardingService : IOnboardingService
 
         try
         {
-            await socket.SendTextAsync("Enter username: ", _logger, ct);
+            var prompt = ProtocolJson.Serialize(
+                new ServerMessage(ProtocolMessageTypes.Prompt, new PromptData("Enter username:")));
+            await socket.SendTextAsync(prompt, _logger, ct);
 
             var message = await socket.ReceiveMessageAsync(_logger, ct);
 
@@ -36,7 +39,15 @@ public sealed class OnboardingService : IOnboardingService
                 return null;
             }
 
-            if (!TryValidateMessage(message, out var username, 24))
+            if (!ProtocolJson.TryDeserializeClientMessage(message, out var clientMessage)
+                || clientMessage is null
+                || !clientMessage.Type.Equals(ProtocolMessageTypes.SetUsername, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var usernameArgs = ProtocolJson.DeserializeArgs<UsernameArgs>(clientMessage.Args);
+            if (!TryValidateMessage(usernameArgs?.Username, out var username, 24))
             {
                 return null;
             }
@@ -51,7 +62,7 @@ public sealed class OnboardingService : IOnboardingService
         return null;
     }
 
-    private bool TryValidateMessage(string message, out string? cleanMessage, int? maxLength = null)
+    private bool TryValidateMessage(string? message, out string? cleanMessage, int? maxLength = null)
     {
         cleanMessage = null;
 

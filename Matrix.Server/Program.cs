@@ -5,6 +5,7 @@ using Matrix.Server.Services.Commands;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSingleton<IConnectionManager, ConnectionManager>();
+builder.Services.AddSingleton<IProtocolMessageSender, ProtocolMessageSender>();
 builder.Services.AddSingleton<WebSocketConnectionService>();
 builder.Services.AddSingleton<ISessionManager, SessionManager>();
 builder.Services.AddSingleton<WorldMap>();

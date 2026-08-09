@@ -1,28 +1,31 @@
+using System.Text.Json;
+using Matrix.Core.Protocol;
+
 namespace Matrix.Server.Services.Commands;
 
 public sealed class SayCommand : ICommand
 {
     private readonly ISessionManager _sessionManager;
-    private readonly IConnectionManager _connectionManager;
+    private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly ILogger<SayCommand> _logger;
 
     public SayCommand(
         ISessionManager sessionManager,
-        IConnectionManager connectionManager,
+        IProtocolMessageSender protocolMessageSender,
         ILogger<SayCommand> logger)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-        _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
+        _protocolMessageSender = protocolMessageSender ?? throw new ArgumentNullException(nameof(protocolMessageSender));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string Name => "/say";
+    public string Type => ProtocolMessageTypes.Say;
 
     public string Description => "Broadcasts a message to users in your current room.";
 
-    public string Example => "/say hello";
+    public string Example => "say hello";
 
-    public async Task ExecuteAsync(CommandContext context, string? parameters, CancellationToken ct)
+    public async Task ExecuteAsync(CommandContext context, JsonElement? args, CancellationToken ct)
     {
         if (!_sessionManager.TryGetByConnectionId(context.ConnectionId, out SessionState? session) || session is null)
         {
@@ -30,10 +33,15 @@ public sealed class SayCommand : ICommand
             return;
         }
 
-        var message = parameters?.Trim();
+        var sayArgs = ProtocolJson.DeserializeArgs<SayArgs>(args);
+        var message = sayArgs?.Message?.Trim();
         if (string.IsNullOrEmpty(message))
         {
-            await _connectionManager.SendTextAsync(context.ConnectionId, "You must provide a message to say.", ct);
+            await _protocolMessageSender.SendAsync(
+                context.ConnectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("You must provide a message to say."),
+                ct);
             return;
         }
 
@@ -48,13 +56,18 @@ public sealed class SayCommand : ICommand
                 "No room recipients found for {ConnectionId} in {RoomId}",
                 context.ConnectionId,
                 session.Value.CurrentRoomId);
-            await _connectionManager.SendTextAsync(context.ConnectionId, "No one can hear you right now.", ct);
+            await _protocolMessageSender.SendAsync(
+                context.ConnectionId,
+                ProtocolMessageTypes.Error,
+                new ErrorData("No one can hear you right now."),
+                ct);
             return;
         }
 
-        await _connectionManager.BroadcastTextAsync(
+        await _protocolMessageSender.BroadcastAsync(
             roomConnectionIds,
-            $"{session.Value.Username} says: {message}",
+            ProtocolMessageTypes.ChatMessage,
+            new ChatMessageData(session.Value.Username, message),
             ct);
     }
 }

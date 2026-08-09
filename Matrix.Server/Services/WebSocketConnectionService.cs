@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using Matrix.Core.Protocol;
 using Matrix.Server.Extensions;
 
 namespace Matrix.Server.Services;
@@ -73,22 +74,42 @@ public sealed class WebSocketConnectionService
         if (username is null)
         {
             _logger.LogWarning("Username onboarding did not produce a value for {ConnectionId}", connectionId);
-            await socket.SendTextAsync("Invalid username. Must not be empty and less than 24 characters", _logger, ct);
+            await socket.SendTextAsync(
+                ProtocolJson.Serialize(new ServerMessage(
+                    ProtocolMessageTypes.Error,
+                    new ErrorData("Invalid username message. Send setUsername with a non-empty username of 24 characters or fewer."))),
+                _logger,
+                ct);
             return false;
         }
 
         if (!_sessionManager.TryUpdateUsername(connectionId, username))
         {
-            await socket.SendTextAsync("Unable to store username", _logger, ct);
+            await socket.SendTextAsync(
+                ProtocolJson.Serialize(new ServerMessage(
+                    ProtocolMessageTypes.Error,
+                    new ErrorData("Unable to store username."))),
+                _logger,
+                ct);
             _logger.LogError("Unable to store username for {ConnectionId}", connectionId);
             return false;
         }
 
-        await socket.SendTextAsync($"Welcome, {username}!", _logger, ct);
+        await socket.SendTextAsync(
+            ProtocolJson.Serialize(new ServerMessage(
+                ProtocolMessageTypes.UserEntered,
+                new UserPresenceData(username))),
+            _logger,
+            ct);
 
         if (!_sessionManager.TryGetByConnectionId(connectionId, out var session) || session is null)
         {
-            await socket.SendTextAsync("Unable to get session state", _logger, ct);
+            await socket.SendTextAsync(
+                ProtocolJson.Serialize(new ServerMessage(
+                    ProtocolMessageTypes.Error,
+                    new ErrorData("Unable to get session state."))),
+                _logger,
+                ct);
             _logger.LogError("Unable to get session state for {ConnectionId}", connectionId);
             return false;
         }
@@ -103,7 +124,12 @@ public sealed class WebSocketConnectionService
 
         var connectionIds = sessions.Where(x => x.ConnectionId != connectionId).Select(x => x.ConnectionId);
 
-        await BroadcastTextAsync(connectionIds, $"{username} joined the lobby", ct);
+        await BroadcastTextAsync(
+            connectionIds,
+            ProtocolJson.Serialize(new ServerMessage(
+                ProtocolMessageTypes.UserEntered,
+                new UserPresenceData(username))),
+            ct);
 
         return true;
     }
