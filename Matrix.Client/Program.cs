@@ -7,7 +7,9 @@ var serverUri = GetServerUri(args);
 using var shutdown = new CancellationTokenSource();
 using var socket = new ClientWebSocket();
 var shutdownRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-var awaitingUsername = false;
+var usernamePromptReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+var usernameSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+var usernameEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
 Console.CancelKeyPress += (_, eventArgs) =>
 {
@@ -23,8 +25,24 @@ try
     await socket.ConnectAsync(serverUri, shutdown.Token);
     Console.WriteLine("Connected. Type /quit to exit.");
 
-    var receiveTask = ReceiveMessagesAsync(socket, shutdown, () => awaitingUsername = true);
-    var sendTask = SendConsoleInputAsync(socket, shutdown, () => awaitingUsername, () => awaitingUsername = false);
+    var receiveTask = ReceiveMessagesAsync(
+        socket,
+        shutdown,
+        () => { usernamePromptReceived.TrySetResult(); },
+        username =>
+        {
+            if (usernameSent.Task.IsCompletedSuccessfully
+                && username.Equals(usernameSent.Task.Result, StringComparison.Ordinal))
+            {
+                usernameEntered.TrySetResult();
+            }
+        });
+    var sendTask = SendConsoleInputAsync(
+        socket,
+        shutdown,
+        usernamePromptReceived.Task,
+        usernameSent,
+        usernameEntered.Task);
 
     await Task.WhenAny(receiveTask, sendTask, shutdownRequested.Task);
     shutdown.Cancel();
@@ -68,7 +86,8 @@ static Uri GetServerUri(string[] args)
 static async Task ReceiveMessagesAsync(
     ClientWebSocket socket,
     CancellationTokenSource shutdown,
-    Action usernamePromptReceived)
+    Action usernamePromptReceived,
+    Action<string> usernameEntered)
 {
     var buffer = new byte[4096];
 
@@ -100,7 +119,7 @@ static async Task ReceiveMessagesAsync(
             }
 
             var text = Encoding.UTF8.GetString(message.ToArray());
-            if (!TryRenderServerMessage(text, usernamePromptReceived, out var rendered) || rendered is null)
+            if (!TryRenderServerMessage(text, usernamePromptReceived, usernameEntered, out var rendered) || rendered is null)
             {
                 Console.WriteLine(text);
             }
@@ -125,11 +144,15 @@ static async Task ReceiveMessagesAsync(
 static async Task SendConsoleInputAsync(
     ClientWebSocket socket,
     CancellationTokenSource shutdown,
-    Func<bool> isAwaitingUsername,
-    Action usernameSent)
+    Task usernamePromptReceived,
+    TaskCompletionSource<string> usernameSubmission,
+    Task usernameEntered)
 {
     try
     {
+        await usernamePromptReceived.WaitAsync(shutdown.Token);
+        var isUsernameSent = false;
+
         while (!shutdown.IsCancellationRequested && socket.State == WebSocketState.Open)
         {
             var line = await Console.In.ReadLineAsync(shutdown.Token);
@@ -142,6 +165,11 @@ static async Task SendConsoleInputAsync(
             if (line.Equals("/quit", StringComparison.OrdinalIgnoreCase)
                 || line.Equals("quit", StringComparison.OrdinalIgnoreCase))
             {
+                if (usernameSubmission.Task.IsCompletedSuccessfully)
+                {
+                    await usernameEntered.WaitAsync(shutdown.Token);
+                }
+
                 shutdown.Cancel();
                 return;
             }
@@ -152,12 +180,13 @@ static async Task SendConsoleInputAsync(
             }
 
             ClientMessage? clientMessage;
-            if (isAwaitingUsername())
+            if (!isUsernameSent)
             {
                 clientMessage = new ClientMessage(
                     ProtocolMessageTypes.SetUsername,
                     JsonSerializer.SerializeToElement(new UsernameArgs(line.Trim()), ProtocolJson.SerializerOptions));
-                usernameSent();
+                usernameSubmission.TrySetResult(line.Trim());
+                isUsernameSent = true;
             }
             else if (!TryCreateClientMessage(line, out clientMessage) || clientMessage is null)
             {
@@ -224,7 +253,11 @@ static bool TryCreateClientMessage(string line, out ClientMessage? message)
     return false;
 }
 
-static bool TryRenderServerMessage(string json, Action usernamePromptReceived, out string? rendered)
+static bool TryRenderServerMessage(
+    string json,
+    Action usernamePromptReceived,
+    Action<string> usernameEntered,
+    out string? rendered)
 {
     rendered = null;
 
@@ -244,6 +277,12 @@ static bool TryRenderServerMessage(string json, Action usernamePromptReceived, o
         if (type == ProtocolMessageTypes.Prompt)
         {
             usernamePromptReceived();
+        }
+        else if (type == ProtocolMessageTypes.UserEntered
+            && data.TryGetProperty("username", out var enteredUsername)
+            && enteredUsername.GetString() is { } username)
+        {
+            usernameEntered(username);
         }
 
         rendered = type switch

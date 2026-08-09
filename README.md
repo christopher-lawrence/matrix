@@ -163,17 +163,33 @@ Connecting to ws://localhost:5114/ws...
 Connected. Type /quit to exit.
 Enter username:
 > Ada
-Welcome, Ada!
+Ada entered.
 > look
-roomState: Lobby
+Lobby
+Welcome to the Lobby
+Exits: north
+Users: Ada
 > who
-who: Ada
+Users here: Ada
 > say hello
-chatMessage: Ada says: hello
+Ada says: hello
 > move north
-roomState: Arcade
+Arcade
+Enjoy the arcade
+Exits: south
+Users: Ada
 > help
-help: available commands and examples
+Available commands:
+help - Lists available commands and examples.
+  Example: {"type":"help"}
+look - Shows the current room, exits, and users nearby.
+  Example: {"type":"look"}
+move - Moves to an adjacent room by direction.
+  Example: {"type":"move","args":{"direction":"north"}}
+say - Broadcasts a message to users in your current room.
+  Example: {"type":"say","args":{"message":"hello"}}
+who - Lists users in your current room.
+  Example: {"type":"who"}
 > /quit
 ```
 
