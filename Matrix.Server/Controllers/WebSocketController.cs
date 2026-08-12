@@ -1,5 +1,5 @@
 using System.Net.WebSockets;
-using Matrix.Core.Services;
+using Matrix.Core.Domain;
 using Matrix.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,18 +11,18 @@ public class WebSocketController : ControllerBase
 {
     private readonly WebSocketConnectionService _connectionService;
     private readonly ISessionManager _sessionManager;
-    private readonly WorldMap _worldMap;
+    private readonly World _world;
     private readonly ILogger<WebSocketController> _logger;
 
     public WebSocketController(
         WebSocketConnectionService connectionService,
         ISessionManager sessionManager,
-        WorldMap worldMap,
+        World world,
         ILogger<WebSocketController> logger)
     {
         _connectionService = connectionService;
         _sessionManager = sessionManager;
-        _worldMap = worldMap;
+        _world = world;
         _logger = logger;
     }
 
@@ -44,7 +44,7 @@ public class WebSocketController : ControllerBase
                 PlayerId = new Core.Ids.PlayerId(Guid.NewGuid()),
                 SessionId = new Core.Ids.UserSessionId(Guid.NewGuid()),
                 Username = "anonymous",
-                CurrentRoomId = _worldMap.DefaultRoomId,
+                CurrentAreaId = _world.DefaultAreaId,
             };
 
             _logger.LogInformation(

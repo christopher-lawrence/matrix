@@ -4,32 +4,31 @@ using System.Text.RegularExpressions;
 using Matrix.Core.Domain;
 using Matrix.Core.Ids;
 using Matrix.Core.Protocol;
-using Matrix.Core.Services;
 
 namespace Matrix.Server.Services.Commands;
 
 public sealed class GoCommand : ICommand
 {
     private readonly ISessionManager _sessionManager;
-    private readonly WorldMap _worldMap;
+    private readonly World _world;
     private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly ILogger<GoCommand> _logger;
 
     public GoCommand(
         ISessionManager sessionManager,
-        WorldMap worldMap,
+        World world,
         IProtocolMessageSender protocolMessageSender,
         ILogger<GoCommand> logger)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-        _worldMap = worldMap ?? throw new ArgumentNullException(nameof(worldMap));
+        _world = world ?? throw new ArgumentNullException(nameof(world));
         _protocolMessageSender = protocolMessageSender ?? throw new ArgumentNullException(nameof(protocolMessageSender));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public string Type => ProtocolMessageTypes.Move;
 
-    public string Description => "Moves to an adjacent room by direction.";
+    public string Description => "Moves to an adjacent area by direction.";
 
     public string Example => "move north";
 
@@ -41,9 +40,9 @@ public sealed class GoCommand : ICommand
             return;
         }
 
-        if (!_worldMap.TryGetRoom(session.Value.CurrentRoomId, out var room) || room is null)
+        if (!_world.TryGetArea(session.Value.CurrentAreaId, out var area) || area is null)
         {
-            _logger.LogError("Unable to get room for id {CurrentRoomId}", session.Value.CurrentRoomId);
+            _logger.LogError("Unable to get area for id {CurrentAreaId}", session.Value.CurrentAreaId);
             return;
         }
 
@@ -75,11 +74,11 @@ public sealed class GoCommand : ICommand
 
     private async Task TryMoveAsync(CommandContext context, SessionState session, Direction direction, CancellationToken ct)
     {
-        var previousRoomId = session.CurrentRoomId;
+        var previousAreaId = session.CurrentAreaId;
 
-        if (!_worldMap.TryMove(session.CurrentRoomId, direction, out RoomId roomId) || roomId == default)
+        if (!_world.TryMove(session.CurrentAreaId, direction, out AreaId areaId) || areaId == default)
         {
-            _logger.LogInformation("Can not move {Direcion} in {RoomId}", direction, session.CurrentRoomId.Value);
+            _logger.LogInformation("Can not move {Direction} in {AreaId}", direction, session.CurrentAreaId.Value);
             await _protocolMessageSender.SendAsync(
                 context.ConnectionId,
                 ProtocolMessageTypes.Error,
@@ -88,50 +87,50 @@ public sealed class GoCommand : ICommand
             return;
         }
 
-        if (!_sessionManager.TryUpdateRoom(session.ConnectionId, roomId))
+        if (!_sessionManager.TryUpdateArea(session.ConnectionId, areaId))
         {
-            _logger.LogError("Unable to update room for {ConnectionId} to {RoomId}", session.ConnectionId, roomId);
+            _logger.LogError("Unable to update area for {ConnectionId} to {AreaId}", session.ConnectionId, areaId);
             return;
         }
 
         // Broadcast leave
-        var previousRoomConnectionIds = _sessionManager
-            .GetByRoom(previousRoomId)
+        var previousAreaConnectionIds = _sessionManager
+            .GetByArea(previousAreaId)
             .Where(x => x.ConnectionId != session.ConnectionId)
             .Select(x => x.ConnectionId)
             .ToList();
         await _protocolMessageSender.BroadcastAsync(
-            previousRoomConnectionIds,
+            previousAreaConnectionIds,
             ProtocolMessageTypes.UserLeft,
             new UserPresenceData(session.Username),
             ct);
 
         // Broadcast enter
-        var currentRoomConnectionIds = _sessionManager
-            .GetByRoom(roomId)
+        var currentAreaConnectionIds = _sessionManager
+            .GetByArea(areaId)
             .Where(x => x.ConnectionId != session.ConnectionId)
             .Select(x => x.ConnectionId)
             .ToList();
         await _protocolMessageSender.BroadcastAsync(
-            currentRoomConnectionIds,
+            currentAreaConnectionIds,
             ProtocolMessageTypes.UserEntered,
             new UserPresenceData(session.Username),
             ct);
 
         // Send message to user
-        if (!_worldMap.TryGetRoom(roomId, out var room) || room is null)
+        if (!_world.TryGetArea(areaId, out var area) || area is null)
         {
-            _logger.LogError("Unable to get room for {RoomId}", roomId);
+            _logger.LogError("Unable to get area for {AreaId}", areaId);
             return;
         }
 
-        var sessions = _sessionManager.GetByRoom(room.Id);
+        var sessions = _sessionManager.GetByArea(area.Id);
         var users = sessions
             .Where(x => !string.IsNullOrWhiteSpace(x.Username))
             .Select(x => x.Username)
             .OrderBy(x => x)
             .ToList();
-        var exits = room.Exits.Keys
+        var exits = area.Exits.Keys
             .Select(x => x.ToString().ToLowerInvariant())
             .OrderBy(x => x)
             .ToList();
@@ -140,9 +139,9 @@ public sealed class GoCommand : ICommand
             context.ConnectionId,
             ProtocolMessageTypes.RoomState,
             new RoomStateData(
-                room.Id.Value.ToString(),
-                room.Name,
-                room.Description ?? $"Welcome to {room.Name}",
+                area.Id.Value.ToString(),
+                area.Name,
+                area.Description ?? $"Welcome to {area.Name}",
                 users,
                 exits),
             ct);

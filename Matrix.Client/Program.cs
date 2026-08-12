@@ -321,7 +321,7 @@ static bool TryRenderServerMessage(
 
 static string RenderRoomState(JsonElement data)
 {
-    var name = data.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : "Room";
+    var name = data.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : "Area";
     var description = data.TryGetProperty("description", out var descriptionElement) ? descriptionElement.GetString() : "";
     var exits = ReadStringArray(data, "exits");
     var users = ReadStringArray(data, "users");
@@ -337,7 +337,7 @@ Users: {(users.Count == 0 ? "none" : string.Join(", ", users))}
 static string RenderWho(JsonElement data)
 {
     var users = ReadStringArray(data, "users");
-    return users.Count == 0 ? "You are alone in this room." : $"Users here: {string.Join(", ", users)}";
+    return users.Count == 0 ? "You are alone in this area." : $"Users here: {string.Join(", ", users)}";
 }
 
 static string RenderHelp(JsonElement data)

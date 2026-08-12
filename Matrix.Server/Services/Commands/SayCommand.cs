@@ -21,7 +21,7 @@ public sealed class SayCommand : ICommand
 
     public string Type => ProtocolMessageTypes.Say;
 
-    public string Description => "Broadcasts a message to users in your current room.";
+    public string Description => "Broadcasts a message to users in your current area.";
 
     public string Example => "say hello";
 
@@ -45,17 +45,17 @@ public sealed class SayCommand : ICommand
             return;
         }
 
-        var roomConnectionIds = _sessionManager
-            .GetByRoom(session.Value.CurrentRoomId)
+        var areaConnectionIds = _sessionManager
+            .GetByArea(session.Value.CurrentAreaId)
             .Select(x => x.ConnectionId)
             .ToList();
 
-        if (roomConnectionIds.Count == 0)
+        if (areaConnectionIds.Count == 0)
         {
             _logger.LogWarning(
-                "No room recipients found for {ConnectionId} in {RoomId}",
+                "No area recipients found for {ConnectionId} in {AreaId}",
                 context.ConnectionId,
-                session.Value.CurrentRoomId);
+                session.Value.CurrentAreaId);
             await _protocolMessageSender.SendAsync(
                 context.ConnectionId,
                 ProtocolMessageTypes.Error,
@@ -65,7 +65,7 @@ public sealed class SayCommand : ICommand
         }
 
         await _protocolMessageSender.BroadcastAsync(
-            roomConnectionIds,
+            areaConnectionIds,
             ProtocolMessageTypes.ChatMessage,
             new ChatMessageData(session.Value.Username, message),
             ct);

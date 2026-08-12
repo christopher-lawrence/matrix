@@ -1,31 +1,31 @@
 using System.Text.Json;
+using Matrix.Core.Domain;
 using Matrix.Core.Protocol;
-using Matrix.Core.Services;
 
 namespace Matrix.Server.Services.Commands;
 
 public sealed class LookCommand : ICommand
 {
     private readonly ISessionManager _sessionManager;
-    private readonly WorldMap _worldMap;
+    private readonly World _world;
     private readonly IProtocolMessageSender _protocolMessageSender;
     private readonly ILogger<LookCommand> _logger;
 
     public LookCommand(
         ISessionManager sessionManager,
-        WorldMap worldMap,
+        World world,
         IProtocolMessageSender protocolMessageSender,
         ILogger<LookCommand> logger)
     {
         _sessionManager = sessionManager;
-        _worldMap = worldMap;
+        _world = world;
         _protocolMessageSender = protocolMessageSender;
         _logger = logger;
     }
 
     public string Type => ProtocolMessageTypes.Look;
 
-    public string Description => "Shows the current room, exits, and users nearby.";
+    public string Description => "Shows the current area, exits, and users nearby.";
 
     public string Example => "look";
 
@@ -37,19 +37,19 @@ public sealed class LookCommand : ICommand
             return;
         }
 
-        if (!_worldMap.TryGetRoom(session.Value.CurrentRoomId, out var room) || room is null)
+        if (!_world.TryGetArea(session.Value.CurrentAreaId, out var area) || area is null)
         {
-            _logger.LogError("Unable to get room for id {CurrentRoomId}", session.Value.CurrentRoomId);
+            _logger.LogError("Unable to get area for id {CurrentAreaId}", session.Value.CurrentAreaId);
             return;
         }
 
-        var sessions = _sessionManager.GetByRoom(room.Id);
+        var sessions = _sessionManager.GetByArea(area.Id);
         var users = sessions
             .Where(x => !string.IsNullOrWhiteSpace(x.Username))
             .Select(x => x.Username)
             .OrderBy(x => x)
             .ToList();
-        var exits = room.Exits.Keys
+        var exits = area.Exits.Keys
             .Select(x => x.ToString().ToLowerInvariant())
             .OrderBy(x => x)
             .ToList();
@@ -58,9 +58,9 @@ public sealed class LookCommand : ICommand
             context.ConnectionId,
             ProtocolMessageTypes.RoomState,
             new RoomStateData(
-                room.Id.Value.ToString(),
-                room.Name,
-                room.Description ?? $"Welcome to {room.Name}",
+                area.Id.Value.ToString(),
+                area.Name,
+                area.Description ?? $"Welcome to {area.Name}",
                 users,
                 exits),
             ct);

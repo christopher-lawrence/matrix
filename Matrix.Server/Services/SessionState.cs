@@ -8,5 +8,5 @@ public readonly record struct SessionState
     public UserSessionId SessionId { get; init; }
     public PlayerId PlayerId { get; init; }
     public string Username { get; init; }
-    public RoomId CurrentRoomId { get; init; }
+    public AreaId CurrentAreaId { get; init; }
 }
