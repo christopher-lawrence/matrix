@@ -6,8 +6,8 @@ public sealed class World
 {
     private readonly IReadOnlyDictionary<AreaId, Area> _areas;
 
-    public required WorldId Id { get; init; }
-    public required string Name { get; set; }
+    public WorldId Id { get; }
+    public string Name { get; }
     public AreaId DefaultAreaId { get; }
 
     public World()
