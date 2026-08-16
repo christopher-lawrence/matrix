@@ -1,10 +1,10 @@
 # Matrix
 
-Matrix is a small WebSocket-based text world built with .NET 10. The server exposes a WebSocket endpoint at `/ws`, tracks connected sessions in memory, and lets players inspect rooms, see who is nearby, and move between rooms.
+Matrix is a small WebSocket-based text world built with .NET 10. The server exposes a WebSocket endpoint at `/ws`, tracks connected sessions in memory, and lets players inspect areas, see who is nearby, and move between areas.
 
 ## Project Structure
 
-- `Matrix.Core` contains domain types, strongly typed IDs, and the in-memory `WorldMap`.
+- `Matrix.Core` contains domain types, strongly typed IDs, and the in-memory `World`.
 - `Matrix.Server` is an ASP.NET Core WebSocket server exposing `GET /ws`.
 - `Matrix.Client` is a console WebSocket client for connecting to the server.
 
@@ -100,10 +100,10 @@ WebSocket clients send JSON messages with a `type` and optional `args` object. R
 | Message type | Description |
 | --- | --- |
 | `help` | Lists available commands with short examples. |
-| `look` | Shows the current room name, description, exits, and users in the room. |
-| `who` | Lists users in the current room. |
-| `move` | Moves to an adjacent room when an exit exists. |
-| `say` | Broadcasts a message to users in the current room. |
+| `look` | Shows the current area name, description, exits, and users in the area. |
+| `who` | Lists users in the current area. |
+| `move` | Moves to an adjacent area when an exit exists. |
+| `say` | Broadcasts a message to users in the current area. |
 
 The WebSocket request examples are:
 
@@ -117,7 +117,7 @@ The WebSocket request examples are:
 
 `move` accepts full directions and one-letter abbreviations such as `north`/`n`, `south`/`s`, `east`/`e`, and `west`/`w`.
 
-If the direction is missing, invalid, or unavailable from the current room, the server sends a user-facing error.
+If the direction is missing, invalid, or unavailable from the current area, the server sends a user-facing error.
 
 `say` trims the message before sending it. Empty or whitespace-only messages are rejected:
 
@@ -125,7 +125,7 @@ If the direction is missing, invalid, or unavailable from the current room, the 
 {"type":"error","data":{"message":"You must provide a message to say."}}
 ```
 
-Messages are broadcast only to users in the sender's current room. The sender also receives the broadcast.
+Messages are broadcast only to users in the sender's current area. The sender also receives the broadcast.
 
 Unknown message types receive:
 
@@ -135,12 +135,12 @@ Unknown message types receive:
 
 ## World
 
-The current MVP world has two rooms:
+The current MVP world has two areas:
 
-- `Lobby`: the starting room. Exit: north to `Arcade`.
+- `Lobby`: the starting area. Exit: north to `Arcade`.
 - `Arcade`: exit south to `Lobby`.
 
-When a player moves, other players in the previous room are told that the player left, and players in the destination room are told that the player entered.
+When a player moves, other players in the previous area are told that the player left, and players in the destination area are told that the player entered.
 
 ## Example Session
 
@@ -182,13 +182,13 @@ Users: Ada
 Available commands:
 help - Lists available commands and examples.
   Example: help
-look - Shows the current room, exits, and users nearby.
+look - Shows the current area, exits, and users nearby.
   Example: look
-move - Moves to an adjacent room by direction.
+move - Moves to an adjacent area by direction.
   Example: move north
-say - Broadcasts a message to users in your current room.
+say - Broadcasts a message to users in your current area.
   Example: say hello
-who - Lists users in your current room.
+who - Lists users in your current area.
   Example: who
 > /quit
 ```

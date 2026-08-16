@@ -8,5 +8,5 @@ public class Player
     public required string Name { get; set; }
 
     // relationships
-    public RoomId? CurrentRoomId { get; set; }
+    public AreaId? CurrentAreaId { get; set; }
 }

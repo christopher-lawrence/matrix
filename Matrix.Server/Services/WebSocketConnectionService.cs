@@ -115,12 +115,12 @@ public sealed class WebSocketConnectionService
         }
 
         _logger.LogInformation(
-            "Connection {ConnectionId} completed onboarding for session {SessionId} in room {RoomId}",
+            "Connection {ConnectionId} completed onboarding for session {SessionId} in area {AreaId}",
             connectionId,
             session.Value.SessionId,
-            session.Value.CurrentRoomId);
+            session.Value.CurrentAreaId);
 
-        var sessions = _sessionManager.GetByRoom(session.Value.CurrentRoomId);
+        var sessions = _sessionManager.GetByArea(session.Value.CurrentAreaId);
 
         var connectionIds = sessions.Where(x => x.ConnectionId != connectionId).Select(x => x.ConnectionId);
 

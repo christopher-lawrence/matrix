@@ -10,10 +10,10 @@ public interface ISessionManager
     bool TryGetBySessionId(UserSessionId sessionId, out SessionState? session);
     bool RemoveByConnectionId(Guid connectionId, out SessionState? removed);
     bool RemoveBySessionId(UserSessionId sessionId, out SessionState? removed);
-    IReadOnlyList<SessionState> GetByRoom(RoomId roomId);
+    IReadOnlyList<SessionState> GetByArea(AreaId areaId);
     int Count { get; }
     bool TryUpdateUsername(Guid connectionId, string username);
-    bool TryUpdateRoom(Guid connectionId, RoomId roomId);
+    bool TryUpdateArea(Guid connectionId, AreaId areaId);
 }
 
 public sealed class SessionManager : ISessionManager
@@ -31,10 +31,10 @@ public sealed class SessionManager : ISessionManager
 
     public int Count => _connectionBySessionId.Count;
 
-    public IReadOnlyList<SessionState> GetByRoom(RoomId roomId)
+    public IReadOnlyList<SessionState> GetByArea(AreaId areaId)
     {
         return _byConnectionId.Values
-            .Where(x => x.CurrentRoomId == roomId)
+            .Where(x => x.CurrentAreaId == areaId)
             .ToList();
     }
 
@@ -118,14 +118,14 @@ public sealed class SessionManager : ISessionManager
         return TryGetByConnectionId(connectionId, out session);
     }
 
-    public bool TryUpdateRoom(Guid connectionId, RoomId roomId)
+    public bool TryUpdateArea(Guid connectionId, AreaId areaId)
     {
         if (!TryGetByConnectionId(connectionId, out SessionState? session) || session is null)
         {
             return false;
         }
 
-        var updatedSession = session.Value with { CurrentRoomId = roomId };
+        var updatedSession = session.Value with { CurrentAreaId = areaId };
 
         _byConnectionId[connectionId] = updatedSession;
 

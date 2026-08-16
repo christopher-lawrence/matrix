@@ -2,7 +2,7 @@
 
 ## Repo Overview
 - This is a .NET 10 solution for a small WebSocket-based text world.
-- `Matrix.Core` contains domain types, strongly typed IDs, and the in-memory `WorldMap`.
+- `Matrix.Core` contains domain types, strongly typed IDs, and the in-memory `World`.
 - `Matrix.Server` is an ASP.NET Core WebSocket server exposing `GET /ws`.
 - `Matrix.Client` is currently a placeholder console app.
 
@@ -16,7 +16,7 @@
 - WebSocket connection lifecycle starts in `Matrix.Server/Controllers/WebSocketController.cs` and is handled by `WebSocketConnectionService`.
 - Session state is managed through `ISessionManager`; avoid bypassing it by directly storing connection/session state elsewhere.
 - Socket writes should go through `IConnectionManager` unless there is a lifecycle-specific reason to write directly to the socket.
-- The world graph currently lives in `Matrix.Core/Services/WorldMap.cs`; keep movement/domain logic in core where practical.
+- The world graph currently lives in `Matrix.Core/Domain/World.cs`; keep movement/domain logic in core where practical.
 
 ## Coding Conventions
 - Keep nullable reference types enabled and handle nulls explicitly.

@@ -1,4 +1,4 @@
-using Matrix.Core.Services;
+using Matrix.Core.Domain;
 using Matrix.Server.Services;
 using Matrix.Server.Services.Commands;
 
@@ -8,7 +8,7 @@ builder.Services.AddSingleton<IConnectionManager, ConnectionManager>();
 builder.Services.AddSingleton<IProtocolMessageSender, ProtocolMessageSender>();
 builder.Services.AddSingleton<WebSocketConnectionService>();
 builder.Services.AddSingleton<ISessionManager, SessionManager>();
-builder.Services.AddSingleton<WorldMap>();
+builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<IOnboardingService, OnboardingService>();
 builder.Services.AddSingleton<ICommandHandler, CommandHandler>();
 builder.Services.AddSingleton<ICommand, LookCommand>();
