@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Matrix.Client/Matrix.Client.csproj" />
   <Project Path="Matrix.Core/Matrix.Core.csproj" />
+  <Project Path="Matrix.Core.Tests/Matrix.Core.Tests.csproj" />
   <Project Path="Matrix.Server/Matrix.Server.csproj" />
 </Solution>

@@ -26,7 +26,14 @@ public sealed class World
             Name = "Lobby",
             Description = "Welcome to the Lobby",
             WorldId = Id,
-            Exits = new Dictionary<Direction, AreaId> { { Direction.North, arcadeId } }
+            Connections =
+            [
+                new AreaConnection
+                {
+                    Direction = Direction.North,
+                    Destination = arcadeId
+                }
+            ]
         };
         var arcade = new Area
         {
@@ -34,7 +41,14 @@ public sealed class World
             Name = "Arcade",
             Description = "Enjoy the arcade",
             WorldId = Id,
-            Exits = new Dictionary<Direction, AreaId> { { Direction.South, lobbyId } }
+            Connections =
+            [
+                new AreaConnection
+                {
+                    Direction = Direction.South,
+                    Destination = lobbyId
+                }
+            ]
         };
 
         _areas = new Dictionary<AreaId, Area>
@@ -58,11 +72,13 @@ public sealed class World
             return false;
         }
 
-        if (!fromArea.Exits.TryGetValue(direction, out destinationAreaId))
+        var connection = fromArea.Connections.FirstOrDefault(x => x.Direction == direction);
+        if (connection is null)
         {
             return false;
         }
 
+        destinationAreaId = connection.Destination;
         return true;
     }
 }

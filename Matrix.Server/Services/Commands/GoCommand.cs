@@ -130,8 +130,8 @@ public sealed class GoCommand : ICommand
             .Select(x => x.Username)
             .OrderBy(x => x)
             .ToList();
-        var exits = area.Exits.Keys
-            .Select(x => x.ToString().ToLowerInvariant())
+        var exits = area.Connections
+            .Select(x => x.Direction.ToString().ToLowerInvariant())
             .OrderBy(x => x)
             .ToList();
 

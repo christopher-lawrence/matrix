@@ -7,7 +7,7 @@ public sealed class Area
     public required AreaId Id { get; init; }
     public required string Name { get; set; }
     public string Description { get; set; }
-    public IReadOnlyDictionary<Direction, AreaId> Exits { get; init; }
+    public IReadOnlyCollection<AreaConnection> Connections { get; init; }
 
     // relationships
     public required WorldId WorldId { get; init; }
@@ -15,6 +15,6 @@ public sealed class Area
     public Area()
     {
         Description = "";
-        Exits = new Dictionary<Direction, AreaId>();
+        Connections = [];
     }
 }
